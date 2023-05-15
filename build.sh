@@ -1,57 +1,59 @@
 #!/usr/bin/env bash
 set -ex
 
+VERSION=1.29
+
 unameOut="$(uname -s)"
 case "${unameOut}" in
     Darwin*)
         EXE_SUFFIX=
-        HOST_TRIPLE=x86_64-apple-darwin
-        ARTIFACT=solana-bpf-tools-osx.tar.bz2;;
+        HOST_TRIPLE=$(uname -m)-apple-darwin
+        ARTIFACT=solana-bpf-tools-${VERSION}-$(uname -s)-$(uname -m).tar.bz2;;
     MINGW*)
         EXE_SUFFIX=.exe
         HOST_TRIPLE=x86_64-pc-windows-msvc
-        ARTIFACT=solana-bpf-tools-windows.tar.bz2;;
+        ARTIFACT=solana-bpf-tools-${VERSION}-windows.tar.bz2;;
     Linux* | *)
         EXE_SUFFIX=
         HOST_TRIPLE=$(uname -m)-unknown-linux-gnu
-        ARTIFACT=solana-bpf-tools-$(uname -s)-$(uname -m).tar.bz2
+        ARTIFACT=solana-bpf-tools-${VERSION}-$(uname -s)-$(uname -m).tar.bz2
 esac
 
 cd "$(dirname "$0")"
-OUT_DIR=$(realpath "${1:-out}")
+OUT_DIR=$(realpath "${1:-out-${HOST_TRIPLE}}")
 
 mkdir -p "${OUT_DIR}"
 pushd "${OUT_DIR}"
 
 if [ ! -d "rust" ]; then
-    git clone --single-branch --branch bpf-tools-v1.29 https://github.com/solana-labs/rust.git
+    git clone --single-branch --branch bpf-tools-v${VERSION} https://github.com/solana-labs/rust.git
 fi
 echo "$( cd rust && git rev-parse HEAD )  https://github.com/solana-labs/rust.git" >> version.md
 
 if [ ! -d "cargo" ]; then
-    git clone --single-branch --branch bpf-tools-v1.29 https://github.com/solana-labs/cargo.git
+    git clone --single-branch --branch bpf-tools-v${VERSION} https://github.com/solana-labs/cargo.git
 fi
 echo "$( cd cargo && git rev-parse HEAD )  https://github.com/solana-labs/cargo.git" >> version.md
 
 pushd rust
-git reset --hard HEAD && git clean -d -f -x && git fetch --tags && git checkout bpf-tools-v1.29
+git reset --hard HEAD && git clean -d -f -x && git fetch --tags && git checkout bpf-tools-v${VERSION}
 ./build.sh
 popd
 
 pushd cargo
-git reset --hard HEAD && git clean -d -f -x && git fetch --tags && git checkout bpf-tools-v1.29
+git reset --hard HEAD && git clean -d -f -x && git fetch --tags && git checkout bpf-tools-v${VERSION}
 OPENSSL_STATIC=1 cargo build --release
 popd
 
 if [[ "${HOST_TRIPLE}" != "x86_64-pc-windows-msvc" ]] ; then
     if [ ! -d "newlib" ]; then
-        git clone --single-branch --branch bpf-tools-v1.29 https://github.com/solana-labs/newlib.git
+        git clone --single-branch --branch bpf-tools-v${VERSION} https://github.com/solana-labs/newlib.git
     fi
     echo "$( cd newlib && git rev-parse HEAD )  https://github.com/solana-labs/newlib.git" >> version.md
     mkdir -p newlib_build
     mkdir -p newlib_install
     pushd newlib
-    git reset --hard HEAD && git clean -d -f -x && git fetch --tags && git checkout bpf-tools-v1.29
+    git reset --hard HEAD && git clean -d -f -x && git fetch --tags && git checkout bpf-tools-v${VERSION}
     popd
     pushd newlib_build
     CC="${OUT_DIR}/rust/build/${HOST_TRIPLE}/llvm/bin/clang" \
