@@ -4,6 +4,7 @@ set -ex
 VERSION=1.29
 
 unameOut="$(uname -s)"
+DISTO_NAME=
 case "${unameOut}" in
     Darwin*)
         EXE_SUFFIX=
@@ -17,13 +18,34 @@ case "${unameOut}" in
         EXE_SUFFIX=
         HOST_TRIPLE=$(uname -m)-unknown-linux-gnu
         ARTIFACT=solana-bpf-tools-${VERSION}-$(uname -s)-$(uname -m).tar.bz2
+        DISTO_NAME=$(. /etc/os-release && echo $ID)
+esac
+
+case "${DISTO_NAME}" in
+    ubuntu | debian)
+        cmd="apt-get update && apt-get install -y --no-install-recommends ca-certificates git curl python python3 python3-pip pkg-config gcc build-essential cmake ninja-build libssl-dev"
+        if [ "$(id -u)" -eq 0 ]; then
+            bash -c "$cmd"
+        else
+            sudo bash -c "$cmd"
+        fi
+
+        pip3 install toml
+        if ! command -v carg &>/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        fi
+        PATH="$HOME/.cargo/bin:$PATH"
+        ;;
 esac
 
 cd "$(dirname "$0")"
+SOURCES_DIR=$(realpath "sources")
 OUT_DIR=$(realpath "${1:-out-${HOST_TRIPLE}}")
 
+mkdir -p "${SOURCES_DIR}"
 mkdir -p "${OUT_DIR}"
-pushd "${OUT_DIR}"
+
+pushd "${SOURCES_DIR}"
 
 if [ ! -d "rust" ]; then
     git clone --single-branch --branch bpf-tools-v${VERSION} https://github.com/solana-labs/rust.git
@@ -37,6 +59,21 @@ echo "$( cd cargo && git rev-parse HEAD )  https://github.com/solana-labs/cargo.
 
 pushd rust
 git reset --hard HEAD && git clean -d -f -x && git fetch --tags && git checkout bpf-tools-v${VERSION}
+
+command=$(cat <<EOF
+import toml
+
+with open('config.toml', 'r') as f:
+    config = toml.load(f)
+
+config['build']['build-dir'] = '${OUT_DIR}/rust/build'
+
+with open('config.toml', 'w') as f:
+    toml.dump(config, f)
+EOF
+)
+
+python3 -c "$command"
 ./build.sh
 popd
 
@@ -64,7 +101,10 @@ if [[ "${HOST_TRIPLE}" != "x86_64-pc-windows-msvc" ]] ; then
     popd
 fi
 
+popd
+
 # Copy rust build products
+pushd "${OUT_DIR}"
 mkdir -p deploy/rust
 cp version.md deploy/
 cp -R "rust/build/${HOST_TRIPLE}/stage1/bin" deploy/rust/
