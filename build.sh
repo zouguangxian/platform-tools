@@ -50,12 +50,12 @@ pushd "${SOURCES_DIR}"
 if [ ! -d "rust" ]; then
     git clone --single-branch --branch bpf-tools-v${VERSION} https://github.com/solana-labs/rust.git
 fi
-echo "$( cd rust && git rev-parse HEAD )  https://github.com/solana-labs/rust.git" >> version.md
+echo "$( cd rust && git rev-parse HEAD )  https://github.com/solana-labs/rust.git" >> ${OUT_DIR}/version.md
 
 if [ ! -d "cargo" ]; then
     git clone --single-branch --branch bpf-tools-v${VERSION} https://github.com/solana-labs/cargo.git
 fi
-echo "$( cd cargo && git rev-parse HEAD )  https://github.com/solana-labs/cargo.git" >> version.md
+echo "$( cd cargo && git rev-parse HEAD )  https://github.com/solana-labs/cargo.git" >> ${OUT_DIR}/version.md
 
 pushd rust
 git reset --hard HEAD && git clean -d -f -x && git fetch --tags && git checkout bpf-tools-v${VERSION}
@@ -79,14 +79,14 @@ popd
 
 pushd cargo
 git reset --hard HEAD && git clean -d -f -x && git fetch --tags && git checkout bpf-tools-v${VERSION}
-OPENSSL_STATIC=1 cargo build --release
+CARGO_TARGET_DIR=${OUT_DIR}/cargo/target OPENSSL_STATIC=1 cargo build --release
 popd
 
 if [[ "${HOST_TRIPLE}" != "x86_64-pc-windows-msvc" ]] ; then
     if [ ! -d "newlib" ]; then
         git clone --single-branch --branch bpf-tools-v${VERSION} https://github.com/solana-labs/newlib.git
     fi
-    echo "$( cd newlib && git rev-parse HEAD )  https://github.com/solana-labs/newlib.git" >> version.md
+    echo "$( cd newlib && git rev-parse HEAD )  https://github.com/solana-labs/newlib.git" >> ${OUT_DIR}/version.md
     mkdir -p newlib_build
     mkdir -p newlib_install
     pushd newlib
