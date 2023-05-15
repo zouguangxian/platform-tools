@@ -23,7 +23,7 @@ esac
 
 case "${DISTO_NAME}" in
     ubuntu | debian)
-        cmd="apt-get update && apt-get install -y --no-install-recommends ca-certificates git curl python python3 python3-pip pkg-config gcc build-essential cmake ninja-build libssl-dev"
+        cmd="apt-get update && apt-get install -y --no-install-recommends ca-certificates git curl lrzsz python python3 python3-pip pkg-config gcc build-essential cmake ninja-build libssl-dev"
         if [ "$(id -u)" -eq 0 ]; then
             bash -c "$cmd"
         else
